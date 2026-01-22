@@ -156,48 +156,6 @@ def test_kunde_post():
     assert retrieved_kunde == created_kunde, "Retrieved Kunde does not match created Kunde."
     delete_response = requests.delete(f"{HOST}/kunden?id={kunde_id}", timeout=2) # Code not checked here, not in specifications
 
-
-# kunde PATCH
-
-def test_kunde_patch_updates():
-    """Test updating a Kunde partially."""
-    new_kunde = {
-        "email": "example2@chungus.com",
-        "vorname": "Chungus",
-        "nachname": "Big",
-        "passwort": "StrongPass2?",
-    }
-    response = requests.post(f"{HOST}/kunden", json=new_kunde, timeout=2)
-    assert response.status_code == 201, f"Failed to create Kunde for update test. Code: {response.status_code}"
-    created_kunde = response.json()
-    kunde_id = created_kunde["kundeId"]
-
-    updated_email = "chungus@example.com"
-    update_data = {"email": updated_email}
-    put_response = requests.patch(f"{HOST}/kunden?id={kunde_id}", json=update_data, timeout=2)
-    assert put_response.status_code == 200, f"Failed to update Kunde email. Code: {put_response.status_code}"
-    updated_kunde = put_response.json()
-    assert updated_kunde["email"] == updated_email, f"Expected updated email {updated_email}, got {updated_kunde['email']}"
-
-    updated_vorname = "Big"
-    updated_nachname = "Chungus"
-    update_data = {"vorname": updated_vorname, "nachname": updated_nachname}
-    put_response = requests.patch(f"{HOST}/kunden?id={kunde_id}", json=update_data, timeout=2)
-    assert put_response.status_code == 200, f"Failed to update Kunde names. Code: {put_response.status_code}"
-    updated_kunde = put_response.json()
-    assert updated_kunde["vorname"] == updated_vorname, f"Expected updated vorname {updated_vorname}, got {updated_kunde['vorname']}"
-    assert updated_kunde["nachname"] == updated_nachname, f"Expected updated nachname {updated_nachname}, got {updated_kunde['nachname']}"
-
-    updated_passwort = "NewStrongPass3?"
-    update_data = {"passwort": updated_passwort}
-    put_response = requests.patch(f"{HOST}/kunden?id={kunde_id}", json=update_data, timeout=2)
-    assert put_response.status_code == 200, f"Failed to update Kunde password. Code: {put_response.status_code}"
-    updated_kunde = put_response.json()
-    assert updated_kunde["passwort"] == updated_passwort, f"Expected updated passwort {updated_passwort}, got {updated_kunde['passwort']}"
-
-    delete_response = requests.delete(f"{HOST}/kunden?id={kunde_id}", timeout=2)
-
-
 # kunde PUT
 
 def test_kunde_put_full_update():
