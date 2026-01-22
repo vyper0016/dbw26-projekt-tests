@@ -1,6 +1,9 @@
 # DBW26 Project Tests
 
 This repository contains pytest-based API tests for the DBW26 project. Tests are organized by domain in separate files.
+
+
+
 ## Structure
 - `test_general.py`
 - `test_mitarbeiter.py`
@@ -33,3 +36,10 @@ pytest test_produkt.py
 
 ## Notes
 - Tests assume seed data from `data.sql` is loaded (for ID- and SKU-specific assertions).
+  
+## Disclaimer
+
+- Die Tests spiegeln nur meine Interpretation der Aufgabenstellung wider und ersetzen nicht das eigene Verständnis oder die eigene Implementierung. Die Nutzung erfolgt auf eigene Verantwortung.
+
+- Diese Tests stellen keine Musterlösung dar und garantieren keine Vollständigkeit
+oder Korrektheit im Sinne der Bewertung.
