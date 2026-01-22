@@ -39,7 +39,7 @@ def test_produkt_get_by_sku():
         "sku": sku,
         "name": "Notebook Pro",
         "preis": 1299.00,
-        "lagerbestand": 8,
+        "lagerbestand": 5, # assumes triggers have run correctly
         "angelegtVon": 2,
     }
 
@@ -174,7 +174,7 @@ def test_long_preis():
     new_produkt = {
         "sku": "SKU-LONG-PREIS",
         "name": "Long Preis Produkt",
-        "preis": 100000000.99,
+        "preis": 100_000_000.99,
         "lagerbestand": 1,
         "angelegtVon": 1,
     }

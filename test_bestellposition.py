@@ -65,12 +65,12 @@ def test_bestellposition_get_by_invalid_id():
 
 def test_bestellposition_post_delete():
     """Test creating and deleting a Bestellposition with auto-calculated gesamtpreis."""
-    produkt_response = requests.get(f"{HOST}/produkte?sku=SKU-1001", timeout=2)
+    produkt_response = requests.get(f"{HOST}/produkte?sku=SKU-1002", timeout=2)
     assert produkt_response.status_code == 200, "Failed to retrieve product for test."
     produkt = produkt_response.json()
     produkt_preis = float(produkt["preis"])
 
-    new_position = {"bestellungId": 1, "produktSku": "SKU-1001", "menge": 3}
+    new_position = {"bestellungId": 1, "produktSku": "SKU-1002", "menge": 3}
 
     response = requests.post(f"{HOST}/bestellpositionen", json=new_position, timeout=2)
     assert response.status_code == 201, f"Failed to create Bestellposition. Code: {response.status_code}"
@@ -92,7 +92,7 @@ def test_bestellposition_post_delete():
 
 def test_bestellposition_invalid_bestellung_id():
     """Test creating Bestellposition with invalid bestellungId returns conflict."""
-    new_position = {"bestellungId": 99999, "produktSku": "SKU-1001", "menge": 1}
+    new_position = {"bestellungId": 99999, "produktSku": "SKU-1002", "menge": 1}
     response = requests.post(f"{HOST}/bestellpositionen", json=new_position, timeout=2)
     assert response.status_code in (400, 409), f"Expected 400 or 409 for invalid bestellungId, got {response.status_code}"
 
@@ -103,17 +103,17 @@ def test_bestellposition_invalid_produkt_sku():
     response = requests.post(f"{HOST}/bestellpositionen", json=new_position, timeout=2)
     assert response.status_code in (400, 409), f"Expected 400 or 409 for invalid produktSku, got {response.status_code}"
 
-
+    
 def test_bestellposition_zero_menge():
     """Test creating Bestellposition with zero menge returns 400."""
-    new_position = {"bestellungId": 1, "produktSku": "SKU-1001", "menge": 0}
+    new_position = {"bestellungId": 1, "produktSku": "SKU-1002", "menge": 0}
     response = requests.post(f"{HOST}/bestellpositionen", json=new_position, timeout=2)
     assert response.status_code == 400, f"Expected 400 for zero menge, got {response.status_code}"
 
 
 def test_bestellposition_negative_menge():
     """Test creating Bestellposition with negative menge returns 400."""
-    new_position = {"bestellungId": 1, "produktSku": "SKU-1001", "menge": -5}
+    new_position = {"bestellungId": 1, "produktSku": "SKU-1002", "menge": -5}
     response = requests.post(f"{HOST}/bestellpositionen", json=new_position, timeout=2)
     assert response.status_code == 400, f"Expected 400 for negative menge, got {response.status_code}"
 
@@ -121,9 +121,9 @@ def test_bestellposition_negative_menge():
 def test_bestellposition_missing_required_fields():
     """Test creating Bestellposition with missing required fields."""
     invalid_positions = [
-        {"produktSku": "SKU-1001", "menge": 1},
+        {"produktSku": "SKU-1002", "menge": 1},
         {"bestellungId": 1, "menge": 1},
-        {"bestellungId": 1, "produktSku": "SKU-1001"},
+        {"bestellungId": 1, "produktSku": "SKU-1002"},
     ]
     for invalid_pos in invalid_positions:
         response = requests.post(f"{HOST}/bestellpositionen", json=invalid_pos, timeout=2)
