@@ -128,3 +128,79 @@ def test_bestellposition_missing_required_fields():
     for invalid_pos in invalid_positions:
         response = requests.post(f"{HOST}/bestellpositionen", json=invalid_pos, timeout=2)
         assert response.status_code == 400, f"Expected 400 for missing fields in {invalid_pos}, got {response.status_code}"
+
+# Triggers
+
+def test_bestellposition_order_more_than_lagerbestand():
+    """Test creating Bestellposition with menge exceeding lagerbestand returns Error."""
+    produkt_response = requests.get(f"{HOST}/produkte?sku=SKU-1003", timeout=2)
+    assert produkt_response.status_code == 200, "Failed to retrieve product for test."
+    produkt = produkt_response.json()
+    lagerbestand = int(produkt["lagerbestand"])
+
+    new_position = {"bestellungId": 1, "produktSku": "SKU-1003", "menge": lagerbestand + 1}
+    response = requests.post(f"{HOST}/bestellpositionen", json=new_position, timeout=2)
+    assert response.status_code in (400, 409), f"Expected 400 or 409 for menge exceeding lagerbestand, got {response.status_code}"
+    
+def test_bestellposition_lagerbestand_decreased():
+    '''On bestellposition insert, the corresponding product lagerbestand is decreased.'''
+    produkt_sku = "SKU-1005"
+    menge = 2
+    produkt_response = requests.get(f"{HOST}/produkte?sku={produkt_sku}", timeout=2)
+    assert produkt_response.status_code == 200, "Failed to retrieve product for test."
+    produkt = produkt_response.json()
+    initial_lagerbestand = int(produkt["lagerbestand"])
+    new_position = {"bestellungId": 1, "produktSku": produkt_sku, "menge": menge}
+    response = requests.post(f"{HOST}/bestellpositionen", json=new_position, timeout=2)
+    assert response.status_code == 201, f"Failed to create Bestellposition. Code: {response.status_code}"
+    position_id = response.json()["positionsId"]
+    produkt_response_after = requests.get(f"{HOST}/produkte?sku={produkt_sku}", timeout=2)
+    assert produkt_response_after.status_code == 200, "Failed to retrieve product after creating Bestellposition."
+    produkt_after = produkt_response_after.json()
+    updated_lagerbestand = int(produkt_after["lagerbestand"])
+    assert updated_lagerbestand == initial_lagerbestand - menge, f"Lagerbestand not decreased correctly. Expected {initial_lagerbestand - menge}, got {updated_lagerbestand}"
+    
+    # Cleanup
+    delete_response = requests.delete(f"{HOST}/bestellpositionen?id={position_id}", timeout=2)
+    assert delete_response.status_code == 204, f"Failed to delete Bestellposition. Code: {delete_response.status_code}"
+
+    
+def test_bestellposition_lagerbestand_restored_on_delete():
+    '''If a bestellposition is deleted or bestellung set to "storniert", the corresponding product lagerbestand is increased.'''
+    # assumes bestellungId 5, 
+    # SKU-1005 increases lagerbestand by 3 on deletion
+    # SKU-1001 increases lagerbestand by 2 on deletion
+    # deletes positions and checks lagerbestand restoration
+    
+    bestellung_id = 5
+    produkt_skus_mengen = [("SKU-1005", 3), ("SKU-1001", 2)]
+    initial_bestellung_response = requests.get(f"{HOST}/bestellungen?id={bestellung_id}", timeout=2)
+    assert initial_bestellung_response.status_code == 200, f"Failed to retrieve Bestellung {bestellung_id} for test."
+    initial_bestellung = initial_bestellung_response.json()
+    
+    for produkt_sku, menge in produkt_skus_mengen:
+        produkt_response = requests.get(f"{HOST}/produkte?sku={produkt_sku}", timeout=2)
+        assert produkt_response.status_code == 200, "Failed to retrieve product for test."
+        produkt = produkt_response.json()
+        initial_lagerbestand = int(produkt["lagerbestand"])
+
+        position_response = requests.get(f"{HOST}/bestellpositionen", timeout=2)
+        assert position_response.status_code == 200, "Failed to retrieve Bestellpositionen for test."
+        position_id = next((p["positionsId"] for p in position_response.json() if p["bestellungId"] == bestellung_id and p["produktSku"] == produkt_sku), None)
+        assert position_id is not None, f"Failed to find Bestellposition for {produkt_sku} in Bestellung {bestellung_id}."
+
+        delete_response = requests.delete(f"{HOST}/bestellpositionen?id={position_id}", timeout=2)
+        assert delete_response.status_code == 204, f"Failed to delete Bestellposition {position_id}. Code: {delete_response.status_code}"
+
+        produkt_response_after = requests.get(f"{HOST}/produkte?sku={produkt_sku}", timeout=2)
+        assert produkt_response_after.status_code == 200, "Failed to retrieve product after deletion."
+        produkt_after = produkt_response_after.json()
+        updated_lagerbestand = int(produkt_after["lagerbestand"])
+        assert updated_lagerbestand == initial_lagerbestand + menge, f"Lagerbestand not restored correctly for {produkt_sku}. Expected {initial_lagerbestand + menge}, got {updated_lagerbestand}"
+        
+    # Restore the deleted bestellposition for test idempotency
+    for produkt_sku, menge in produkt_skus_mengen:
+        new_position = {"bestellungId": bestellung_id, "produktSku": produkt_sku, "menge": menge}
+        response = requests.post(f"{HOST}/bestellpositionen", json=new_position, timeout=2)
+        assert response.status_code == 201, f"Failed to recreate Bestellposition for {produkt_sku}. Code: {response.status_code}"
+        
