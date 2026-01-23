@@ -1,5 +1,5 @@
 import requests
-from common import HOST
+from common import HOST, allowed_bestellung_status
 
 required_fields_summe = {"kundeId", "email", "anzahlBestellungen", "gesamtsumme"}
 required_fields_verkaufszahlen = {"sku", "name", "gesamtVerkaufteMenge", "umsatz", "anzahlBestellungen"}
@@ -42,6 +42,13 @@ def test_kunde_ohne_bestellungen_in_report():
         
     # Cleanup
     requests.delete(f"{HOST}/kunden?id={new_kunde_id}")
+    
+    # Commented out because deleting a kunde is not a requested feature
+    # Make sure the kunde is gone from the report
+    #report_response_after_delete = requests.get(f"{HOST}/report/kunde/summe-anzahl-bestellungen")
+    #report_data_after_delete = report_response_after_delete.json()
+    #for entry in report_data_after_delete:
+    #    assert entry["kundeId"] != new_kunde_id, "Deleted kunde should not be present in report"
     
 def test_all_kunden_in_report():
     
@@ -108,6 +115,12 @@ def test_new_produkt_in_verkaufszahlen_report():
         
     # Cleanup
     requests.delete(f"{HOST}/produkte?sku={new_produkt_id}")
+    
+    # Make sure the produkt is gone from the report
+    report_response_after_delete = requests.get(f"{HOST}/report/produkt/verkaufszahlen")
+    report_data_after_delete = report_response_after_delete.json()
+    for entry in report_data_after_delete:
+        assert entry["sku"] != new_produkt_id, "Deleted produkt should not be present in report"
     
 def test_all_produkte_in_verkaufszahlen_report():
     report_response = requests.get(f"{HOST}/report/produkt/verkaufszahlen")
@@ -226,3 +239,81 @@ def test_mitarbeiter_uebersicht_counts_anna():
             break
     else:
         assert False, "Anna Meier not found in report"
+        
+## -- test report/mitarbeiter/bestellstatus-uebersicht --
+
+def test_mitarbeiter_bestellstatus_uebersicht_status_code():
+    response = requests.get(f"{HOST}/report/mitarbeiter/bestellstatus-uebersicht")
+    assert response.status_code == 200, "Status code is not 200"
+    
+def test_mitarbeiter_bestellstatus_uebersicht_schema():
+    response = requests.get(f"{HOST}/report/mitarbeiter/bestellstatus-uebersicht")
+    data = response.json()
+    
+    for entry in data:
+        assert required_fields_bestellstatus_uebersicht.issubset(entry.keys()), f"Missing fields in response: {entry}"
+        
+def test_all_mitarbeiter_in_bestellstatus_uebersicht_report():
+    report_response = requests.get(f"{HOST}/report/mitarbeiter/bestellstatus-uebersicht")
+    report_data = report_response.json()
+    mitarbeiter_nrs_in_report = {entry["personalNr"] for entry in report_data}
+    for required_nr in range(1, 10+1):
+        assert required_nr in mitarbeiter_nrs_in_report, f"Mitarbeiter with personalNr {required_nr} not found in report"
+    
+    assert len(report_data) >= 10 * len(allowed_bestellung_status), "Report does not contain expected number of entries"
+        
+def test_new_mitarbeiter_in_bestellstatus_uebersicht_report():
+    new_mitarbeiter = {
+        "passwort": "StrongPass1?",
+        "email": "mustermann@exampledb.com",
+        "vorname": "Max",
+        "nachname": "Mustermann",
+    }
+    response = requests.post(f"{HOST}/mitarbeiter", json=new_mitarbeiter, timeout=2)
+    response.raise_for_status()
+    created_mitarbeiter = response.json()
+    personal_nr = created_mitarbeiter["personalNr"]
+    
+    report_response = requests.get(f"{HOST}/report/mitarbeiter/bestellstatus-uebersicht")
+    report_data = report_response.json()
+    
+    new_reports = [entry for entry in report_data if entry["personalNr"] == personal_nr]
+    assert len(new_reports) == len(allowed_bestellung_status), "Newly created mitarbeiter should have an entry for each allowed status"
+    
+    for entry in new_reports:
+        assert entry["anzahlBestellungen"] == 0, "Newly created mitarbeiter should have 0 bestellungen for each status"
+            
+    # Clean up by deleting the created Mitarbeiter
+    delete_response = requests.delete(f"{HOST}/mitarbeiter?id={personal_nr}", timeout=2)
+    delete_response.raise_for_status()
+    
+    # Make sure the entries are gone after deletion
+    report_response_after_delete = requests.get(f"{HOST}/report/mitarbeiter/bestellstatus-uebersicht")
+    report_data_after_delete = report_response_after_delete.json()
+    for entry in report_data_after_delete:
+        assert entry["personalNr"] != personal_nr, "Entries for deleted mitarbeiter should not be present in report"
+        
+def test_mitarbeiter_bestellstatus_uebersicht_counts_anna():
+    response = requests.get(f"{HOST}/report/mitarbeiter/bestellstatus-uebersicht")
+    report_data = response.json()
+    
+    status_counts = {status: 0 for status in allowed_bestellung_status}
+    for entry in report_data:
+        if entry["personalNr"] == 1:  # Anna Meier
+            status_counts[entry["status"]] = entry["anzahlBestellungen"]
+    
+    assert status_counts["neu"] == 1, "Anna Meier should have 1 'neu' bestellungen" # bestellungId 1
+    assert status_counts["bezahlt"] == 0, "Anna Meier should have 0 'bezahlt' bestellungen"
+    assert status_counts["versendet"] == 0, "Anna Meier should have 0 'versendet' bestellungen"
+    assert status_counts["abgeschlossen"] == 0, "Anna Meier should have 0 'abgeschlossen' bestellungen"
+    assert status_counts["storniert"] == 0, "Anna Meier should have 0 'storniert' bestellungen"
+    
+def test_mitarbeiter_bestellstatus_uebersicht_sorted_by_personalNr_asc():
+    response = requests.get(f"{HOST}/report/mitarbeiter/bestellstatus-uebersicht")
+    report_data = response.json()
+    
+    last_nr = -1
+    for entry in report_data:
+        current_nr = entry["personalNr"]
+        assert current_nr >= last_nr, "Report is not sorted by personalNr in ascending order"
+        last_nr = current_nr

@@ -1,11 +1,9 @@
 import requests
-from common import HOST, required_fields_bestellung, required_fields_produkt
+from common import HOST, required_fields_bestellung, required_fields_produkt, allowed_bestellung_status
 
 # AI GENERATED NOT AUDITED
 ## -- Bestellung -- ##
 
-
-allowed_status = {"neu", "bezahlt", "versendet", "abgeschlossen", "storniert"}
 
 position_required_fields = {"positionsId", "bestellungId", "produkt", "menge", "gesamtpreis"}
 
@@ -69,7 +67,7 @@ def test_bestellung_status_values():
 	bestellungen = response.json()
 
 	for bestellung in bestellungen:
-		assert bestellung["status"] in allowed_status, f"Invalid status found: {bestellung['status']}"
+		assert bestellung["status"] in allowed_bestellung_status, f"Invalid status found: {bestellung['status']}"
 
 
 def test_bestellung_post_delete():
