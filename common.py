@@ -8,6 +8,7 @@ required_fields_kunden_adresse = {"adresse", "typ"}
 required_fields_adresse = {"adresseId", "aktiv", "strasse", "hausnummer", "plz", "ort", "land"}
 required_fields_produkt = {"sku", "name", "preis", "lagerbestand", "angelegtVon"}
 required_fields_bestellposition = {"positionsId", "bestellungId", "produktSku", "menge", "gesamtpreis"}
+required_fields_bestellung = {"bestellungId", "kundeId", "personalNr", "datum", "status", "positionen"}
 
 invalid_passwords = {
     "shorter_than_5": "Ab1?",
