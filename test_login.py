@@ -40,6 +40,17 @@ def test_login_mitarbeiter_wrong_password():
     for field in data:
         assert field in return_fields_mitarbeiter, f"Unexpected field in response: {field}"
         assert data[field] is None, f"Field {field} should be None on failed login"
+
+def test_login_mitarbeiter_sql_injection_password():
+    """Mitarbeiter login blocks simple SQL injection strings in password."""
+    payload = _make_login_payload_mitarbeiter(password="falsch' OR '1'='1")
+    response = requests.post(f"{HOST}/login/mitarbeiter", json=payload, timeout=2)
+    assert response.status_code == 401, f"Expected 401 when using SQL injection payload, got {response.status_code}"
+
+    data = response.json()
+    for field in data:
+        assert field in return_fields_mitarbeiter, f"Unexpected field in response: {field}"
+        assert data[field] is None, f"Field {field} should be None on failed login"
     
 def test_login_mitarbeiter_nonexistent_user():
     """Mitarbeiter login fails with non-existent personalNr."""
@@ -78,6 +89,21 @@ def test_login_kunde_wrong_password():
     assert response.status_code == 401, f"Expected 401 for wrong password, got {response.status_code}"
     
     # test return is null fields
+    data = response.json()
+    for field in data:
+        assert field in return_fields_kunde, f"Unexpected field in response: {field}"
+        if field != "adressen":
+            assert data[field] is None, f"Field {field} should be None on failed login"
+        else:
+            assert data[field] == [], f"Field {field} should be empty list on failed login"
+
+
+def test_login_kunde_sql_injection_password():
+    """Kunde login blocks simple SQL injection strings in password."""
+    payload = _make_login_payload_kunde(password="falsch' OR '1'='1")
+    response = requests.post(f"{HOST}/login/kunde", json=payload, timeout=2)
+    assert response.status_code == 401, f"Expected 401 when using SQL injection payload, got {response.status_code}"
+
     data = response.json()
     for field in data:
         assert field in return_fields_kunde, f"Unexpected field in response: {field}"
