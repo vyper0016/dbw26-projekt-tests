@@ -2,17 +2,6 @@
 
 This repository contains pytest-based API tests for the DBW26 project. Tests are organized by domain in separate files.
 
-
-
-## Structure
-- `test_general.py`
-- `test_mitarbeiter.py`
-- `test_kunde.py`
-- `test_adresse.py`
-- `test_produkt.py`
-- `test_bestellposition.py`
-- `common.py` (shared constants such as `HOST` and required field sets)
-
 ## Prerequisites
 - Python 3.9+ installed and on your PATH
 - The DBW26 server running and reachable at `http://localhost:8080`
