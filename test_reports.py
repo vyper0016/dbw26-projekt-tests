@@ -3,7 +3,8 @@ from common import HOST
 
 required_fields_summe = {"kundeId", "email", "anzahlBestellungen", "gesamtsumme"}
 required_fields_verkaufszahlen = {"sku", "name", "gesamtVerkaufteMenge", "umsatz", "anzahlBestellungen"}
-
+required_fields_uebersicht = {'personalNr', 'anzahlVerwalteterBestellungen', 'anzahlAngelegterProdukte'}
+required_fields_bestellstatus_uebersicht = {'personalNr', 'status', 'anzahlBestellungen'}
 
 ## -- test report/kunde/summe-anzahl-bestellungen --
 
@@ -70,6 +71,7 @@ def test_kunde_report_first_summe():
     assert first_entry["gesamtsumme"] == 5*699.99 + 2*1299.00, "First kunde's gesamtsumme does not match expected value"
     
 ## -- test report/produkt/verkaufszahlen --
+
 def test_produkt_verkaufszahlen_status_code():
     response = requests.get(f"{HOST}/report/produkt/verkaufszahlen")
     assert response.status_code == 200, "Status code is not 200"
@@ -155,3 +157,72 @@ def test_verkaufszahlen_report_sorted_by_menge_desc():
         current_menge = entry["gesamtVerkaufteMenge"]
         assert current_menge <= last_menge, "Report is not sorted by gesamtVerkaufteMenge in descending order"
         last_menge = current_menge
+        
+## -- test report/mitarbeiter/uebersicht --
+
+def test_mitarbeiter_uebersicht_status_code():
+    response = requests.get(f"{HOST}/report/mitarbeiter/uebersicht")
+    assert response.status_code == 200, "Status code is not 200"
+    
+def test_mitarbeiter_uebersicht_schema():
+    response = requests.get(f"{HOST}/report/mitarbeiter/uebersicht")
+    data = response.json()
+    
+    for entry in data:
+        assert required_fields_uebersicht.issubset(entry.keys()), f"Missing fields in response: {entry}"
+        
+def test_all_mitarbeiter_in_uebersicht_report():
+    report_response = requests.get(f"{HOST}/report/mitarbeiter/uebersicht")
+    report_data = report_response.json()
+    mitarbeiter_nrs_in_report = {entry["personalNr"] for entry in report_data}
+    for required_nr in range(1, 10+1):
+        assert required_nr in mitarbeiter_nrs_in_report, f"Mitarbeiter with personalNr {required_nr} not found in report"
+        
+def test_mitarbeiter_new_in_uebersicht_report():
+    new_mitarbeiter = {
+        "passwort": "StrongPass1?",
+        "email": "mustermann@exampledb.com",
+        "vorname": "Max",
+        "nachname": "Mustermann",
+    }
+    response = requests.post(f"{HOST}/mitarbeiter", json=new_mitarbeiter, timeout=2)
+    response.raise_for_status()
+    created_mitarbeiter = response.json()
+    personal_nr = created_mitarbeiter["personalNr"]
+    
+    report_response = requests.get(f"{HOST}/report/mitarbeiter/uebersicht")
+    report_data = report_response.json()
+    for entry in report_data:
+        if entry["personalNr"] == personal_nr:
+            assert entry["anzahlVerwalteterBestellungen"] == 0, "Newly created mitarbeiter should have 0 verwalteter bestellungen"
+            assert entry["anzahlAngelegterProdukte"] == 0, "Newly created mitarbeiter should have 0 angelegter produkte"
+        break
+    else:
+        assert False, "Newly created mitarbeiter not found in report"
+    
+
+    # Clean up by deleting the created Mitarbeiter
+    delete_response = requests.delete(f"{HOST}/mitarbeiter?id={personal_nr}", timeout=2)
+    delete_response.raise_for_status()
+    
+def test_mitarbeiter_uebersicht_sorted_by_personalNr_asc():
+    response = requests.get(f"{HOST}/report/mitarbeiter/uebersicht")
+    report_data = response.json()
+    
+    last_nr = -1
+    for entry in report_data:
+        current_nr = entry["personalNr"]
+        assert current_nr >= last_nr, "Report is not sorted by personalNr in ascending order"
+        last_nr = current_nr
+        
+def test_mitarbeiter_uebersicht_counts_anna():
+    response = requests.get(f"{HOST}/report/mitarbeiter/uebersicht")
+    report_data = response.json()
+    
+    for entry in report_data:
+        if entry["personalNr"] == 1:  # Anna Meier
+            assert entry["anzahlVerwalteterBestellungen"] == 1, "Anna Meier should have 1 verwalteter bestellungen" # from bestellungId 1
+            assert entry["anzahlAngelegterProdukte"] == 1, "Anna Meier should have 5 angelegter produkte" # for SKU-1001
+            break
+    else:
+        assert False, "Anna Meier not found in report"
